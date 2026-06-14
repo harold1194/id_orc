@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart'; // <-- Inimport ang Face Detection
 import 'package:image_picker/image_picker.dart';
+import 'package:your_project_name/utils/faceclassifier.dart';
 
 class IdCardOcrScreen extends StatefulWidget {
   const IdCardOcrScreen({super.key});
@@ -155,6 +156,9 @@ class _IdCardOcrScreenState extends State<IdCardOcrScreen> {
   final ImagePicker _picker = ImagePicker();
   final TextRecognizer _textRecognizer = TextRecognizer();
 
+  final FaceClassifier _faceClassifier = FaceClassifier();
+  List<Face> _idFaces = [];
+
   // Gagawa ng Face Detector instance
   final FaceDetector _faceDetector = FaceDetector(
     options: FaceDetectorOptions(
@@ -249,12 +253,19 @@ class _IdCardOcrScreenState extends State<IdCardOcrScreen> {
     });
   }
 
+  @override
+  void initState() {
+    super.initState();
+    _faceClassifier.loadModel();
+  }
+
   // Pag-detect kung may mukha sa loob ng ID Card
   Future<void> _detectFaceOnId(File imageFile) async {
     final inputImage = InputImage.fromFile(imageFile);
     final faces = await _faceDetector.processImage(inputImage);
 
     setState(() {
+      _idFaces = faces;
       _idHasFace = faces.isNotEmpty;
     });
 
@@ -284,7 +295,7 @@ class _IdCardOcrScreenState extends State<IdCardOcrScreen> {
       return;
     }
 
-    if (!_idHasFace) {
+    if (!_idHasFace || _idFaces.isEmpty) {
       setState(
         () => _verificationStatus =
             'Verification Failed: Cannot match because ID has no clear face.',
@@ -292,19 +303,33 @@ class _IdCardOcrScreenState extends State<IdCardOcrScreen> {
       return;
     }
 
-    // --- LOGIC PARA SA FACE EMBEDDING MATCHING ---
-    // PAALALA: Dahil ang ML Kit ay walang "compareFaces" function, dito pumapasok ang pagpapadala
-    // ng dalawang files sa isang backend server (gaya ng Face++ o AWS Rekognition) o paggamit ng TFLite.
-    // Para sa halimbawang ito, maglalagay tayo ng "Mock Matcher" na nagpapahiwatig na gumagana ang daloy:
+    final croppedIdFace = _faceClassifier.cropFace(_idImageFile!, _idFaces.first);
+    final croppedSelfieFace = _faceClassifier.cropFace(_selfieImageFile!, selfieFaces.first);
 
-    await Future.delayed(
-      const Duration(seconds: 2),
-    ); // Kunwari nag-poproseso ang AI model
+    if (croppedIdFace == null || croppedSelfieFace == null) {
+      setState(
+        () => _verificationStatus =
+            'Verification Failed: Image processing error.',
+      );
+      return;
+    }
+
+    final idEmbeddings = _faceClassifier.getEmbeddings(croppedIdFace);
+    final selfieEmbeddings = _faceClassifier.getEmbeddings(croppedSelfieFace);
+
+    final matchScore = _faceClassifier.compareFaces(
+      idEmbeddings,
+      selfieEmbeddings,
+    );
 
     setState(() {
-      // Dito mo ilalagay ang totoong threshold matching score mo.
-      _verificationStatus =
-          '✅ MATCHED SUCCESSFULLY! (94.2% Confidence)\nThis person is the authorized ID owner.';
+      if (matchScore >= 80.0) {
+        _verificationStatus =
+            '✅ MATCHED SUCCESSFULLY! (${matchScore.toStringAsFixed(1)}% Confidence)\nThis person is the authorized ID owner.';
+      } else {
+        _verificationStatus =
+            '❌ VERIFICATION FAILED (${matchScore.toStringAsFixed(1)}% Match)\nThe face does not match the ID owner.';
+      }
     });
   }
 
