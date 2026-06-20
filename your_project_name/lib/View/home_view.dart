@@ -81,43 +81,6 @@ class _HomeScreenState extends State<HomeScreen> {
             margin: const EdgeInsets.only(bottom: 50),
             child: Column(
               children: [
-                TextButton(
-                  style: TextButton.styleFrom(
-                    backgroundColor: Colors.amber,
-                    minimumSize: const Size(200, 40),
-                  ),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const RegistrationScreen(),
-                      ),
-                    );
-                  },
-                  child: const Text(
-                    "Register Face",
-                    style: TextStyle(fontSize: 20, color: Colors.black),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                TextButton(
-                  style: TextButton.styleFrom(
-                    backgroundColor: Colors.amber,
-                    minimumSize: const Size(200, 40),
-                  ),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const RecognitionScreen(),
-                      ),
-                    );
-                  },
-                  child: const Text(
-                    "Recognize Face",
-                    style: TextStyle(fontSize: 20, color: Colors.black),
-                  ),
-                ),
                 const SizedBox(height: 24),
                 TextButton(
                   style: TextButton.styleFrom(
